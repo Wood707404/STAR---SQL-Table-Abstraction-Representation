@@ -1,0 +1,239 @@
+﻿<local:SampleWindow x:Class="WPFSamples.HousePlan.ErDiagram"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:WPFSamples"
+                    xmlns:local2="clr-namespace:WPFSamples.Samples.HousePlan"
+                    Title="ER Diagram" 
+                    MinHeight="300" MinWidth="600"
+                    Height="600" Width="900"
+                    x:Name="view">
+    <local:SampleWindow.Resources>
+        <Style TargetType="Control" x:Key="EmptyFocusVisualStyle">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate>
+
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </local:SampleWindow.Resources>
+    <DockPanel>
+        <Grid Margin="10" >
+            <Grid.Resources>
+                <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+                <!-- This CompositeCollection basically Concatenates the Nodes and Connectors in a single one -->
+                <CompositeCollection x:Key="Col">
+                    <CollectionContainer Collection="{Binding DataContext.Nodes,Source={x:Reference view}}"/>
+                    <CollectionContainer Collection="{Binding DataContext.Connectors,Source={x:Reference view}}"/>
+                    <CollectionContainer Collection="{Binding DataContext.Snaps,Source={x:Reference view}}"/>
+                    <ListBoxItem Canvas.Left="{Binding SelectedObject.MidPoint.X}" Canvas.Top="{Binding SelectedObject.MidPoint.Y}">
+                        <Thumb DataContext="{Binding SelectedObject}" DragDelta="MidPoint_DragDelta" Height="10" Width="10"
+                               Background="Red" Visibility="{Binding DataContext.ShowMidPointThumb, 
+                                                                     Converter={StaticResource BoolToVisibilityConverter},
+                                                                     RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </ListBoxItem>
+                </CompositeCollection>
+
+                <!-- This is the DataTemplate that will be used to render the Node class -->
+                <DataTemplate DataType="{x:Type local2:Node}">
+                    
+                    <Border BorderBrush="DarkGray" BorderThickness="1" Padding="1"
+                            Width="{Binding Size.X}"
+                            Height="Auto" >
+                        <Grid>
+                            <Grid.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="AliceBlue" Offset="0"/>
+                                    <GradientStop Color="{Binding Color}" Offset=".5"/>
+                                </LinearGradientBrush>
+                            </Grid.Background>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <StackPanel HorizontalAlignment="Right">
+                                <Button>Button 1</Button>
+                            </StackPanel>
+                            <Thumb DragDelta="Thumb_Drag"
+                                   IsEnabled="{Binding IsSelected,RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBoxItem}}}"
+                                   x:Name="Thumb">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border Background="White">
+                                            <TextBlock Text="{Binding Name}" 
+                                                       FontSize="16" 
+                                                       VerticalAlignment="Center"
+                                                       x:Name="txt" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                                <Setter TargetName="txt" Property="Text" Value="{Binding ShortName}"/>
+                                                <Setter TargetName="txt" Property="TextAlignment" Value="Center"/>
+                                            </DataTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+
+                            <DataGrid x:Name="dataGrid" 
+                              Margin="0,0,0,0" 
+                              VerticalAlignment="Top"
+                              Width="180"
+                              ItemsSource="{Binding Data}"
+                              AutoGenerateColumns="False"
+                              Grid.Row="1" IsReadOnly="True" IsManipulationEnabled="True"
+                                      MinRowHeight="25" SelectionChanged="dataGrid_SelectionChanged"
+                              >
+
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding Item1}" 
+                                        Foreground="Black" Width="100" Header="Name" HeaderStringFormat="name" IsReadOnly="False" CanUserResize="False" CanUserSort="False" CanUserReorder="False" />
+                                    <DataGridTextColumn Binding="{Binding Item2}" 
+                                        Foreground="Black" Width="80" Header="Type"  HeaderStringFormat="type" IsReadOnly="False" CanUserResize="False" CanUserSort="False" CanUserReorder="False" />
+
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                            <!--<Setter TargetName="Data" Property="Visibility"  Value="Collapsed"/>-->
+                            <Setter TargetName="Thumb" Property="Grid.RowSpan" Value="2"/>
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+
+                <!-- This is the DataTemplate that will be used to render the Connector class -->
+                <DataTemplate DataType="{x:Type local2:Connector}">
+                    <Grid>
+                        <Path StrokeThickness="3" x:Name="Line">
+                            <Path.Stroke>
+                                <SolidColorBrush Color="{Binding Color}"/>
+                            </Path.Stroke>
+                            <Path.Data>
+                                <PathGeometry>
+                                    <PathFigure StartPoint="{Binding Start.Location.Value}">
+                                        <QuadraticBezierSegment  
+                                                   Point1="{Binding MidPoint.Value}"
+                                                   Point2="{Binding End.Location.Value}" />
+                                    </PathFigure>
+                                </PathGeometry>
+                            </Path.Data>
+                        </Path>
+                    </Grid>
+                    <!-- Trigger for connector appearance -->
+                    <DataTemplate.Triggers>
+                        <!-- Trigger for null end point -->
+                        <DataTrigger Binding="{Binding End}" Value="{x:Null}">
+                            <Setter TargetName="Line" Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <!-- Trigger for selected state -->
+                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBoxItem}}}" Value="True">
+                            <Setter TargetName="Line" Property="Stroke" Value="Red"/>
+                            <Setter TargetName="Line" Property="StrokeDashArray" Value="2 3"/>
+                            <!-- Animation for selected state -->
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard x:Name="DashAnimation">
+                                    <Storyboard Duration="00:00:01" RepeatBehavior="Forever">
+                                        <DoubleAnimation From="50" To="0" Storyboard.TargetName="Line" Storyboard.TargetProperty="StrokeDashOffset"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <StopStoryboard BeginStoryboardName="DashAnimation"/>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+
+                <!-- This is the DataTemplate that will be used to render the SnapSpot class -->
+                <DataTemplate DataType="{x:Type local2:SnapSpot}">
+                    <Thumb DragDelta="Snap_DragDelta"
+                           IsEnabled="{Binding IsSelected,RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListBoxItem}}}">
+                        <Thumb.Template>
+                            <ControlTemplate>
+                                <Path Stroke="Black" Fill="Black" RenderTransformOrigin="0.0,0.0">
+                                    <Path.Data>
+                                        <PathGeometry>
+                                            <PathFigure StartPoint="-5,0">
+                                                <ArcSegment IsLargeArc="True"
+                                                            Size="5, 5"
+                                                            Point="5, 0"
+                                                            SweepDirection="Clockwise" />
+                                            </PathFigure>
+                                        </PathGeometry>
+                                    </Path.Data>
+                                    <Path.RenderTransform>
+                                        <RotateTransform Angle="{Binding Angle}"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                            </ControlTemplate>
+                        </Thumb.Template>
+                    </Thumb>
+                </DataTemplate>
+            </Grid.Resources>
+
+            <ListBox SelectedItem="{Binding SelectedObject}" 
+                     PreviewMouseMove="ListBox_PreviewMouseMove"
+                     PreviewMouseDown="ListBox_PreviewMouseDown" >
+                <ListBox.Template>
+                    <ControlTemplate>
+                        <Border>
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity=".3">
+                                    <GradientStop Color="White" Offset="0"/>
+                                    <GradientStop Color="GhostWhite" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </ListBox.Template>
+                <ListBox.ItemsSource>
+                    <StaticResource ResourceKey="Col"/>
+                </ListBox.ItemsSource>
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas IsItemsHost="True" Background="White" 
+                                Height="{Binding AreaHeight}" Width="{Binding AreaWidth}"
+                                VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+
+                <ListBox.ItemContainerStyle>
+
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Canvas.Left" Value="{Binding Location.X}"/>
+                        <Setter Property="Canvas.Top" Value="{Binding Location.Y}"/>
+                        <Setter Property="FocusVisualStyle" Value="{StaticResource EmptyFocusVisualStyle}"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter x:Name="Content"/>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Content" Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect Color="Gray" ShadowDepth="4" BlurRadius="10"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+
+                                        <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                            <Setter Property="Opacity" Value=".5"/>
+                                        </DataTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+            </ListBox>
+            <Button Content="Connect" VerticalAlignment="Bottom" HorizontalAlignment="Left" Click="Button_Click"/>
+        </Grid>
+    </DockPanel>
+</local:SampleWindow>
